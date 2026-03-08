@@ -309,7 +309,7 @@ export default async function handler(
     }
     
     // 排序
-    filteredNews.sort((a, b) => b.hotScore - a.hotScore);
+    filteredNews.sort((a, b) => (b.hotScore || 0) - (a.hotScore || 0));
     
     // 返回
     res.status(200).json({
