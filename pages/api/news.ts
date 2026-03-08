@@ -1,100 +1,27 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { NewsItem } from '../../types';
 
-// 真实新闻API配置
-const NEWS_APIS = {
-  // GNews API - 每天免费100个请求
-  gnews: {
-    url: 'https://gnews.io/api/v4/top-headlines',
-    params: {
-      token: process.env.GNEWS_API_KEY || '', // 需要配置
-      lang: 'zh',
-      country: 'cn',
-      topic: 'business',
-      max: 20
-    }
-  },
-  // NewsAPI - 每天免费100个请求
-  newsapi: {
-    url: 'https://newsapi.org/v2/top-headlines',
-    params: {
-      apiKey: process.env.NEWS_API_KEY || '', // 需要配置
-      country: 'cn',
-      category: 'business',
-      pageSize: 20
-    }
-  },
-  // Currents API - 每天免费200个请求
-  currents: {
-    url: 'https://api.currentsapi.services/v1/latest-news',
-    params: {
-      apiKey: process.env.CURRENTS_API_KEY || '', // 需要配置
-      language: 'zh',
-      category: 'business'
-    }
-  },
-  // NewsData.io - 每天免费200个请求
-  newsdata: {
-    url: 'https://newsdata.io/api/1/news',
-    params: {
-      apikey: process.env.NEWSDATA_API_KEY || '', // 需要配置
-      category: 'business',
-      country: 'cn',
-      language: 'zh'
-    }
-  }
-};
-
-// RSS源配置 - 需要解析RSS
-const RSS_FEEDS = [
-  {
-    name: '新华网财经',
-    url: 'http://www.news.cn/fortune/news_finance.xml',
-    category: '财经要闻'
-  },
-  {
-    name: '人民网财经',
-    url: 'http://finance.people.com.cn/rss/finance.xml',
-    category: '财经要闻'
-  },
-  {
-    name: '中国证券报',
-    url: 'http://www.cs.com.cn/rss/cs.xml',
-    category: '证券市场'
-  },
-  {
-    name: '上海证券报',
-    url: 'http://www.cnstock.com/rss/news.xml',
-    category: '证券市场'
-  }
-];
-
 // 财经关键词
 const FINANCE_KEYWORDS = [
   '股市', 'A股', '上证指数', '深证成指', '创业板', '科创板', '港股', '美股',
   '基金', 'ETF', '公募', '私募', '理财', '资管',
-  '央行', '货币政策', '利率', '降息', '加息', 'LPR', 'MLF', '存款准备金',
+  '央行', '货币政策', '利率', '降息', '加息', 'LPR', 'MLF',
   'GDP', '经济', '通胀', 'CPI', 'PPI', 'PMI',
-  '新能源', '电动车', '电池', '光伏', '风电', '储能',
-  '科技', '人工智能', 'AI', '芯片', '半导体', '集成电路',
-  '消费', '零售', '电商', '白酒', '食品饮料',
-  '医药', '医疗', '创新药', '生物科技', '医疗器械',
-  '地产', '房地产', '楼市', '房价', '保障房',
-  '银行', '保险', '证券', '券商', '信托',
-  '债券', '国债', '信用债', '可转债',
-  '黄金', '原油', '大宗商品', '期货',
-  'IPO', '上市公司', '财报', '业绩', '并购', '重组'
+  '新能源', '电动车', '电池', '光伏', '风电',
+  '科技', '人工智能', 'AI', '芯片', '半导体',
+  '消费', '零售', '电商', '白酒',
+  '医药', '医疗', '创新药', '生物',
+  '地产', '房地产', '楼市', '房价',
+  '银行', '保险', '证券', '券商',
+  '债券', '国债', '期货', '黄金', '原油'
 ];
 
 // 分类映射
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   '宏观经济': ['央行', '货币政策', '利率', 'GDP', 'CPI', 'PPI', '经济', '财政', '发改委'],
-  '股市行情': ['股市', 'A股', '上证', '深证', '创业板', '科创板', '股价', '涨停', '跌停'],
+  '股市行情': ['股市', 'A股', '上证', '深证', '创业板', '科创板', '股价', '涨停', '跌停', '北向资金'],
   '基金理财': ['基金', 'ETF', '公募', '私募', '理财', '资管', '净值'],
-  '债券市场': ['债券', '国债', '信用债', '可转债', '收益率'],
-  '期货大宗': ['期货', '黄金', '原油', '大宗商品', '铜', '铝'],
-  '外汇市场': ['汇率', '人民币', '美元', '欧元', '外汇'],
-  '新能源': ['新能源', '电动车', '电池', '光伏', '风电', '储能', '锂电'],
+  '新能源': ['新能源', '电动车', '电池', '光伏', '风电', '储能', '锂电', '新能源汽车'],
   '科技创新': ['科技', '人工智能', 'AI', '芯片', '半导体', '互联网', '数字经济'],
   '消费零售': ['消费', '零售', '电商', '白酒', '食品', '餐饮', '旅游'],
   '医药医疗': ['医药', '医疗', '创新药', '生物', '疫苗', '医疗器械'],
@@ -102,7 +29,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   '银行保险': ['银行', '保险', '券商', '证券', '信托', '金融']
 };
 
-// 从文本中提取关键词
+// 从文本提取关键词
 function extractKeywords(title: string, summary?: string): string[] {
   const text = `${title} ${summary || ''}`;
   const keywords: string[] = [];
@@ -116,7 +43,7 @@ function extractKeywords(title: string, summary?: string): string[] {
   return keywords.length > 0 ? keywords : ['财经'];
 }
 
-// 从标题和内容推断分类
+// 推断分类
 function inferCategory(title: string, summary?: string): string {
   const text = `${title} ${summary || ''}`;
   
@@ -131,17 +58,15 @@ function inferCategory(title: string, summary?: string): string {
   return '财经要闻';
 }
 
-// 计算热度分数
-function calculateHotScore(publishTime: string, readCount?: number): number {
+// 计算热度
+function calculateHotScore(publishTime: string): number {
   const hoursSincePublish = (Date.now() - new Date(publishTime).getTime()) / (1000 * 60 * 60);
   const recencyBonus = Math.max(0, 24 - hoursSincePublish) * 2;
   const randomBonus = Math.floor(Math.random() * 15);
-  const baseScore = 75;
-  
-  return Math.min(100, baseScore + recencyBonus + randomBonus);
+  return Math.min(100, 75 + recencyBonus + randomBonus);
 }
 
-// 趋势判断
+// 趋势
 function inferTrend(): 'up' | 'down' | 'stable' {
   const random = Math.random();
   if (random > 0.6) return 'up';
@@ -149,206 +74,15 @@ function inferTrend(): 'up' | 'down' | 'stable' {
   return 'down';
 }
 
-// 从GNews获取新闻
-async function fetchFromGNews(): Promise<NewsItem[]> {
-  const apiKey = process.env.GNEWS_API_KEY;
-  if (!apiKey) {
-    console.log('GNEWS_API_KEY not configured');
-    return [];
-  }
-  
-  try {
-    const params = new URLSearchParams({
-      token: apiKey,
-      lang: 'zh',
-      country: 'cn',
-      topic: 'business',
-      max: '20'
-    });
-    
-    const response = await fetch(`https://gnews.io/api/v4/top-headlines?${params}`);
-    
-    if (!response.ok) {
-      console.log('GNews API failed:', response.status);
-      return [];
-    }
-    
-    const data = await response.json();
-    
-    if (!data.articles || data.articles.length === 0) {
-      return [];
-    }
-    
-    return data.articles.map((article: any, index: number) => ({
-      id: `gnews-${Date.now()}-${index}`,
-      title: article.title || '',
-      summary: article.description || '',
-      source: article.source?.name || 'GNews',
-      publishTime: article.publishedAt || new Date().toISOString(),
-      category: inferCategory(article.title, article.description),
-      tags: extractKeywords(article.title, article.description),
-      hotScore: calculateHotScore(article.publishedAt || new Date().toISOString()),
-      readCount: Math.floor(Math.random() * 50000) + 5000,
-      url: article.url || '',
-      trend: inferTrend()
-    }));
-  } catch (error) {
-    console.error('GNews fetch error:', error);
-    return [];
-  }
-}
-
-// 从NewsAPI获取新闻
-async function fetchFromNewsAPI(): Promise<NewsItem[]> {
-  const apiKey = process.env.NEWS_API_KEY;
-  if (!apiKey) {
-    console.log('NEWS_API_KEY not configured');
-    return [];
-  }
-  
-  try {
-    const params = new URLSearchParams({
-      apiKey: apiKey,
-      country: 'cn',
-      category: 'business',
-      pageSize: '20'
-    });
-    
-    const response = await fetch(`https://newsapi.org/v2/top-headlines?${params}`);
-    
-    if (!response.ok) {
-      console.log('NewsAPI failed:', response.status);
-      return [];
-    }
-    
-    const data = await response.json();
-    
-    if (!data.articles || data.articles.length === 0) {
-      return [];
-    }
-    
-    return data.articles.map((article: any, index: number) => ({
-      id: `newsapi-${Date.now()}-${index}`,
-      title: article.title || '',
-      summary: article.description || '',
-      source: article.source?.name || 'NewsAPI',
-      publishTime: article.publishedAt || new Date().toISOString(),
-      category: inferCategory(article.title, article.description),
-      tags: extractKeywords(article.title, article.description),
-      hotScore: calculateHotScore(article.publishedAt || new Date().toISOString()),
-      readCount: Math.floor(Math.random() * 50000) + 5000,
-      url: article.url || '',
-      trend: inferTrend()
-    }));
-  } catch (error) {
-    console.error('NewsAPI fetch error:', error);
-    return [];
-  }
-}
-
-// 从Currents API获取新闻
-async function fetchFromCurrents(): Promise<NewsItem[]> {
-  const apiKey = process.env.CURRENTS_API_KEY;
-  if (!apiKey) {
-    console.log('CURRENTS_API_KEY not configured');
-    return [];
-  }
-  
-  try {
-    const params = new URLSearchParams({
-      apiKey: apiKey,
-      language: 'zh',
-      category: 'business'
-    });
-    
-    const response = await fetch(`https://api.currentsapi.services/v1/latest-news?${params}`);
-    
-    if (!response.ok) {
-      console.log('Currents API failed:', response.status);
-      return [];
-    }
-    
-    const data = await response.json();
-    
-    if (!data.news || data.news.length === 0) {
-      return [];
-    }
-    
-    return data.news.map((article: any, index: number) => ({
-      id: `currents-${Date.now()}-${index}`,
-      title: article.title || '',
-      summary: article.description || '',
-      source: article.author || article.source || 'Currents',
-      publishTime: article.published || new Date().toISOString(),
-      category: inferCategory(article.title, article.description),
-      tags: extractKeywords(article.title, article.description),
-      hotScore: calculateHotScore(article.published || new Date().toISOString()),
-      readCount: Math.floor(Math.random() * 50000) + 5000,
-      url: article.url || '',
-      trend: inferTrend()
-    }));
-  } catch (error) {
-    console.error('Currents fetch error:', error);
-    return [];
-  }
-}
-
-// 从NewsData.io获取新闻
-async function fetchFromNewsData(): Promise<NewsItem[]> {
-  const apiKey = process.env.NEWSDATA_API_KEY;
-  if (!apiKey) {
-    console.log('NEWSDATA_API_KEY not configured');
-    return [];
-  }
-  
-  try {
-    const params = new URLSearchParams({
-      apikey: apiKey,
-      category: 'business',
-      country: 'cn',
-      language: 'zh'
-    });
-    
-    const response = await fetch(`https://newsdata.io/api/1/news?${params}`);
-    
-    if (!response.ok) {
-      console.log('NewsData API failed:', response.status);
-      return [];
-    }
-    
-    const data = await response.json();
-    
-    if (!data.results || data.results.length === 0) {
-      return [];
-    }
-    
-    return data.results.map((article: any, index: number) => ({
-      id: `newsdata-${Date.now()}-${index}`,
-      title: article.title || '',
-      summary: article.description || '',
-      source: article.source_id || 'NewsData',
-      publishTime: article.pubDate || new Date().toISOString(),
-      category: inferCategory(article.title, article.description),
-      tags: extractKeywords(article.title, article.description),
-      hotScore: calculateHotScore(article.pubDate || new Date().toISOString()),
-      readCount: Math.floor(Math.random() * 50000) + 5000,
-      url: article.link || '',
-      trend: inferTrend()
-    }));
-  } catch (error) {
-    console.error('NewsData fetch error:', error);
-    return [];
-  }
-}
-
-// 使用Jina.ai Reader获取新闻内容
-async function fetchWithJinaReader(url: string): Promise<string> {
+// 使用 Jina.ai Reader 抓取网页内容
+async function fetchWithJina(url: string): Promise<string> {
   try {
     const jinaUrl = `https://r.jina.ai/${url}`;
     const response = await fetch(jinaUrl, {
       headers: {
         'Accept': 'text/plain'
-      }
+      },
+      signal: AbortSignal.timeout(15000) // 15秒超时
     });
     
     if (response.ok) {
@@ -356,87 +90,433 @@ async function fetchWithJinaReader(url: string): Promise<string> {
     }
     return '';
   } catch (error) {
-    console.error('Jina Reader error:', error);
+    console.error('Jina fetch error:', error);
     return '';
   }
 }
 
-// 从权威财经网站抓取新闻（使用Jina.ai Reader）
-async function fetchFromAuthoritySites(): Promise<NewsItem[]> {
-  const sources = [
-    {
-      name: '新浪财经',
-      url: 'https://finance.sina.com.cn/',
-      category: '财经要闻'
-    },
-    {
-      name: '东方财富',
-      url: 'https://www.eastmoney.com/',
-      category: '股市行情'
-    },
-    {
-      name: '财联社',
-      url: 'https://www.cls.cn/',
-      category: '财经要闻'
-    }
-  ];
-  
-  const newsItems: NewsItem[] = [];
-  
-  for (const source of sources) {
-    try {
-      const content = await fetchWithJinaReader(source.url);
-      
-      if (content && content.length > 100) {
-        // 解析Markdown内容，提取新闻标题
-        const lines = content.split('\n').filter(line => line.trim());
-        let count = 0;
+// 从新浪财经抓取新闻
+async function fetchFromSina(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://finance.sina.com.cn/7x24/');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      // 匹配新闻标题和链接
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
         
-        for (const line of lines) {
-          // 提取标题（通常是带链接的文本）
-          const titleMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
-          if (titleMatch && titleMatch[1].length > 10 && count < 5) {
-            const title = titleMatch[1].trim();
-            const url = titleMatch[2];
-            
-            // 过滤掉导航链接
-            if (title.includes('登录') || title.includes('注册') || 
-                title.includes('下载') || title.includes('APP') ||
-                url.includes('javascript') || url.includes('#')) {
-              continue;
-            }
-            
-            newsItems.push({
-              id: `authority-${Date.now()}-${count}`,
-              title: title,
-              summary: '',
-              source: source.name,
-              publishTime: new Date().toISOString(),
-              category: source.category,
-              tags: extractKeywords(title),
-              hotScore: calculateHotScore(new Date().toISOString()),
-              readCount: Math.floor(Math.random() * 50000) + 5000,
-              url: url.startsWith('http') ? url : source.url,
-              trend: inferTrend()
-            });
-            
-            count++;
-          }
+        // 过滤无效链接
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            title.includes('注册') ||
+            title.includes('下载') ||
+            url.includes('javascript') ||
+            url.includes('#') ||
+            !url.startsWith('http')) {
+          continue;
         }
+        
+        // 检查是否包含财经关键词
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `sina-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '新浪财经',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url,
+          trend: inferTrend()
+        });
+        
+        count++;
       }
-    } catch (error) {
-      console.error(`Failed to fetch from ${source.name}:`, error);
     }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('Sina fetch error:', error);
+    return [];
   }
-  
-  return newsItems;
+}
+
+// 从东方财富抓取新闻
+async function fetchFromEastmoney(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://www.eastmoney.com/');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
+        
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            title.includes('注册') ||
+            title.includes('下载') ||
+            title.includes('APP') ||
+            url.includes('javascript') ||
+            url.includes('#')) {
+          continue;
+        }
+        
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `eastmoney-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '东方财富',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url.startsWith('http') ? url : `https://www.eastmoney.com${url}`,
+          trend: inferTrend()
+        });
+        
+        count++;
+      }
+    }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('Eastmoney fetch error:', error);
+    return [];
+  }
+}
+
+// 从财联社抓取新闻
+async function fetchFromCLS(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://www.cls.cn/telegraph');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
+        
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            title.includes('注册') ||
+            url.includes('javascript')) {
+          continue;
+        }
+        
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `cls-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '财联社',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url.startsWith('http') ? url : `https://www.cls.cn${url}`,
+          trend: inferTrend()
+        });
+        
+        count++;
+      }
+    }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('CLS fetch error:', error);
+    return [];
+  }
+}
+
+// 从同花顺抓取新闻
+async function fetchFrom10jqka(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://news.10jqka.com.cn/guonei_list.shtml');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
+        
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            url.includes('javascript')) {
+          continue;
+        }
+        
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `10jqka-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '同花顺',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url.startsWith('http') ? url : `https://news.10jqka.com.cn${url}`,
+          trend: inferTrend()
+        });
+        
+        count++;
+      }
+    }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('10jqka fetch error:', error);
+    return [];
+  }
+}
+
+// 从界面新闻抓取
+async function fetchFromJiemian(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://www.jiemian.com/');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
+        
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            title.includes('注册') ||
+            url.includes('javascript')) {
+          continue;
+        }
+        
+        // 界面新闻是综合新闻，筛选财经相关
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `jiemian-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '界面新闻',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url.startsWith('http') ? url : `https://www.jiemian.com${url}`,
+          trend: inferTrend()
+        });
+        
+        count++;
+      }
+    }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('Jiemian fetch error:', error);
+    return [];
+  }
+}
+
+// 从虎嗅抓取财经新闻
+async function fetchFromHuxiu(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://www.huxiu.com/channel/106.html');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
+        
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            title.includes('APP') ||
+            url.includes('javascript')) {
+          continue;
+        }
+        
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `huxiu-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '虎嗅',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url.startsWith('http') ? url : `https://www.huxiu.com${url}`,
+          trend: inferTrend()
+        });
+        
+        count++;
+      }
+    }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('Huxiu fetch error:', error);
+    return [];
+  }
+}
+
+// 从36氪抓取财经新闻
+async function fetchFrom36Kr(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://36kr.com/newsflashes');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
+        
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            title.includes('APP') ||
+            url.includes('javascript')) {
+          continue;
+        }
+        
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `36kr-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '36氪',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url.startsWith('http') ? url : `https://36kr.com${url}`,
+          trend: inferTrend()
+        });
+        
+        count++;
+      }
+    }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('36Kr fetch error:', error);
+    return [];
+  }
+}
+
+// 从雪球抓取热门讨论
+async function fetchFromXueqiu(): Promise<NewsItem[]> {
+  try {
+    const content = await fetchWithJina('https://xueqiu.com/hots');
+    if (!content) return [];
+    
+    const newsItems: NewsItem[] = [];
+    const lines = content.split('\n');
+    let count = 0;
+    
+    for (const line of lines) {
+      const match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && count < 10) {
+        const title = match[1].trim();
+        const url = match[2];
+        
+        if (title.length < 10 || 
+            title.includes('登录') || 
+            title.includes('抱歉') ||
+            url.includes('javascript')) {
+          continue;
+        }
+        
+        const hasFinanceKeyword = FINANCE_KEYWORDS.some(kw => title.includes(kw));
+        if (!hasFinanceKeyword) continue;
+        
+        newsItems.push({
+          id: `xueqiu-${Date.now()}-${count}`,
+          title: title,
+          summary: '',
+          source: '雪球',
+          publishTime: new Date().toISOString(),
+          category: inferCategory(title),
+          tags: extractKeywords(title),
+          hotScore: calculateHotScore(new Date().toISOString()),
+          readCount: Math.floor(Math.random() * 50000) + 10000,
+          url: url.startsWith('http') ? url : `https://xueqiu.com${url}`,
+          trend: inferTrend()
+        });
+        
+        count++;
+      }
+    }
+    
+    return newsItems;
+  } catch (error) {
+    console.error('Xueqiu fetch error:', error);
+    return [];
+  }
 }
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // 设置CORS
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -449,83 +529,90 @@ export default async function handler(
   try {
     const { category, search, tag } = req.query;
     
-    console.log('Fetching news from multiple sources...');
+    console.log('[News API] 开始从权威网站抓取新闻...');
     
-    // 并发从多个API获取新闻
-    const apiResults = await Promise.all([
-      fetchFromGNews(),
-      fetchFromNewsAPI(),
-      fetchFromCurrents(),
-      fetchFromNewsData(),
-      fetchFromAuthoritySites()
+    // 并发抓取多个新闻源
+    const results = await Promise.all([
+      fetchFromSina(),
+      fetchFromEastmoney(),
+      fetchFromCLS(),
+      fetchFrom10jqka(),
+      fetchFromJiemian(),
+      fetchFromHuxiu(),
+      fetchFrom36Kr(),
+      fetchFromXueqiu()
     ]);
     
     // 合并所有新闻
     let newsItems: NewsItem[] = [];
-    apiResults.forEach(results => {
-      if (results && results.length > 0) {
-        newsItems = newsItems.concat(results);
+    results.forEach(items => {
+      if (items && items.length > 0) {
+        newsItems = newsItems.concat(items);
       }
     });
     
-    console.log(`Total news fetched: ${newsItems.length}`);
+    console.log(`[News API] 共抓取到 ${newsItems.length} 条新闻`);
     
-    // 去重（根据标题）
-    const uniqueNews = newsItems.filter((news, index, self) =>
-      index === self.findIndex(n => n.title === news.title)
-    );
+    // 去重（根据标题相似度）
+    const uniqueNews: NewsItem[] = [];
+    const seenTitles = new Set<string>();
     
-    // 如果没有获取到任何新闻
+    for (const news of newsItems) {
+      const normalizedTitle = news.title.replace(/\s+/g, '').substring(0, 20);
+      if (!seenTitles.has(normalizedTitle)) {
+        seenTitles.add(normalizedTitle);
+        uniqueNews.push(news);
+      }
+    }
+    
+    console.log(`[News API] 去重后剩余 ${uniqueNews.length} 条新闻`);
+    
+    // 如果没有新闻，返回提示
     if (uniqueNews.length === 0) {
       return res.status(200).json({
         success: false,
         data: [],
         total: 0,
-        message: '未能获取到新闻数据。请配置新闻API密钥（GNEWS_API_KEY、NEWS_API_KEY、CURRENTS_API_KEY 或 NEWSDATA_API_KEY）',
-        instructions: {
-          gnews: 'https://gnews.io/register - 每天免费100个请求',
-          newsapi: 'https://newsapi.org/register - 每天免费100个请求',
-          currents: 'https://currentsapi.services/register - 每天免费200个请求',
-          newsdata: 'https://newsdata.io/register - 每天免费200个请求'
-        },
+        message: '暂时无法从新闻源获取数据，请稍后重试',
         timestamp: new Date().toISOString()
       });
     }
     
-    // 按分类筛选
+    // 筛选
+    let filteredNews = [...uniqueNews];
+    
     if (category && category !== '全部') {
       const categoryStr = category as string;
-      uniqueNews.filter(item => item.category === categoryStr);
+      filteredNews = filteredNews.filter(item => item.category === categoryStr);
     }
     
-    // 按标签筛选
     if (tag) {
       const tagStr = tag as string;
-      uniqueNews.filter(item => item.tags.includes(tagStr));
+      filteredNews = filteredNews.filter(item => item.tags.includes(tagStr));
     }
     
-    // 搜索筛选
     if (search) {
       const searchLower = (search as string).toLowerCase();
-      uniqueNews.filter(item =>
+      filteredNews = filteredNews.filter(item =>
         item.title.toLowerCase().includes(searchLower) ||
         item.summary.toLowerCase().includes(searchLower)
       );
     }
     
     // 按热度排序
-    uniqueNews.sort((a, b) => b.hotScore - a.hotScore);
+    filteredNews.sort((a, b) => b.hotScore - a.hotScore);
     
     // 返回结果
     res.status(200).json({
       success: true,
-      data: uniqueNews,
-      total: uniqueNews.length,
+      data: filteredNews,
+      total: filteredNews.length,
+      sources: ['新浪财经', '东方财富', '财联社', '同花顺', '界面新闻', '虎嗅', '36氪', '雪球'],
       timestamp: new Date().toISOString()
     });
     
   } catch (error) {
-    console.error('News API Error:', error);
+    console.error('[News API] Error:', error);
     
     res.status(500).json({
       success: false,
