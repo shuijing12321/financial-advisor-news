@@ -118,7 +118,7 @@ async function fetchFromRSSHub(): Promise<NewsItem[]> {
         const linkMatch = item.match(/<link>(.*?)<\/link>/);
         const link = linkMatch ? linkMatch[1].trim() : '';
         
-        const descMatch = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/s);
+        const descMatch = item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>([\s\S]*?)<\/description>/);
         const description = descMatch ? (descMatch[1] || descMatch[2]).replace(/<[^>]+>/g, '').trim().substring(0, 200) : '';
         
         const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
