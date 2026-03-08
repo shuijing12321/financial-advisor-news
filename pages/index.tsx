@@ -74,18 +74,20 @@ export default function Home() {
     });
     
     // 转换为数组，计算趋势，并排序
-    const topics: HotTopicStats[] = Object.entries(topicCounts)
-      .map(([topic, data]) => ({
-        topic,
-        count: data.count,
-        // 趋势：随机生成，实际应用中应该基于历史数据对比
-        trend: (Math.random() > 0.6 ? 'up' : Math.random() > 0.3 ? 'stable' : 'down') as 'up' | 'down' | 'stable',
-        category: data.category
-      }))
+    const topicsArray = Object.entries(topicCounts)
+      .map(([topic, data]) => {
+        const trendValue = Math.random() > 0.6 ? 'up' : Math.random() > 0.3 ? 'stable' : 'down';
+        return {
+          topic,
+          count: data.count,
+          trend: trendValue as 'up' | 'down' | 'stable',
+          category: data.category
+        };
+      })
       .sort((a, b) => b.count - a.count) // 按出现次数降序
-      .slice(0, 15); // 取前15个
+      .slice(0, 15) as HotTopicStats[]; // 取前15个
     
-    return topics;
+    return topicsArray;
   };
 
   const handleRefresh = async () => {
