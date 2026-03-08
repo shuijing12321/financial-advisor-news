@@ -167,7 +167,8 @@ export async function getNewsList(params?: {
   
   // 按标签筛选
   if (params?.tag) {
-    filteredNews = filteredNews.filter(news => news.tags.includes(params.tag));
+    const tag = params.tag as string;
+    filteredNews = filteredNews.filter(news => news.tags.includes(tag));
   }
   
   // 分页
