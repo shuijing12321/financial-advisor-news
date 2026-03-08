@@ -11,6 +11,7 @@ export interface NewsItem {
   imageUrl?: string;
   hotScore?: number; // 热度分数
   readCount?: number; // 阅读量
+  trend?: 'up' | 'down' | 'stable'; // 趋势
 }
 
 // 素材类型
