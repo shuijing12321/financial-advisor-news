@@ -316,7 +316,7 @@ export default async function handler(
       success: true,
       data: filteredNews,
       total: filteredNews.length,
-      sources: [...new Set(filteredNews.map(n => n.source))],
+      sources: Array.from(new Set(filteredNews.map(n => n.source))),
       timestamp: new Date().toISOString(),
       version: 'v2.0-rsshub'
     });
